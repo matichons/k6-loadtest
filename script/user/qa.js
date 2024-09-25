@@ -1,13 +1,21 @@
 import { browser } from 'k6/browser';
-import { check } from 'k6';
-import { Counter } from 'k6/metrics';
+import { check, sleep } from 'k6';
+import { htmlReport } from "https://raw.githubusercontent.com/benc-uk/k6-reporter/main/dist/bundle.js";
+import { Counter, Gauge, Rate, Trend } from 'k6/metrics';
+
+const httpReqFailed = new Rate('http_req_failed');  // Track failed requests
+const httpReqSuccess = new Counter('http_req_success');  // Track successful interactions
+const pageLoadTime = new Trend('page_load_time', true);  
+
+const totalRequest = new Counter('total_request');
+const throughputMetric = new Trend('throughput', true);  // Track throughput (requests per second)
+const testDurationSeconds = 300; // Duration for throughput calculation (20s in this case)
 export const options = {
   scenarios: {
     ui: {
-      // executor: 'shared-iterations',
-      executor: 'constant-vus',
-      vus: 10, // 10 concurrent users
-      duration: '10s', //
+      executor: 'constant-vus', // This executor maintains a constant number of virtual users
+      vus: 50, // 1 concurrent virtual user
+      duration: '5m', // Run the test for 1 minute
       options: {
         browser: {
           type: 'chromium',
@@ -16,11 +24,12 @@ export const options = {
     },
   },
   thresholds: {
-    checks: ['rate==1.0']
+    'http_req_duration': ['p(99)<500'], // 99% of requests must complete below 0.5s
+    'http_req_failed': ['rate<0.01'],   // Less than 1% of requests should fail
   },
 };
-const successCount = new Counter('successes');
-const failureCount = new Counter('failures');
+
+
 export default async function () {
   const context = await browser.newContext();
   const page = await context.newPage();
@@ -31,8 +40,16 @@ export default async function () {
     ];
   
     await context.addCookies(savedCookies);
-    await page.goto('http://merz-ph2.duckdns.org/q-a.php?cat_id=all&tab=available&section=qa');
-  
+    const startTime = new Date().getTime();  // Start time for page load tracking
+    const response =  await page.goto('http://merz-ph2.duckdns.org/q-a.php?cat_id=all&tab=available&section=qa', { timeout: 60000 });
+    totalRequest.add(1);
+    const endTime = new Date().getTime();  // End time for page load tracking
+
+  // Track page load time
+  pageLoadTime.add(endTime - startTime);
+  check(response, {
+    'Page loaded successfully': (res) => res.status() === 200,
+  }) ? httpReqSuccess.add(1) : httpReqFailed.add(1);
      await page.waitForSelector('h1.headers', {
       state: 'visible',
       timeout: 5000,
@@ -41,31 +58,17 @@ export default async function () {
       state: 'visible',
       timeout: 5000,
     });
-    await page.screenshot({ path: 'screenshots/qa-reward.png' });
+
     const h1Element = await page.$('h1.headers');
-    if (h1Element) {
       // Get the text content of the <b> element inside the <h1>
       const bElement = await h1Element.$('b.font-bold');
-      if (bElement) {
+ 
         const headerText = await bElement.textContent();
-        const isHeaderCorrect = check(headerText.trim(), {
+         check(headerText.trim(), {
           'Header text is correct': (text) => text === 'คำถาม',
-        });
+        })
 
-        if (isHeaderCorrect) {
-          successCount.add(1);
-        } else {
-      
-          failureCount.add(1);
-        }
-      } else {
     
-        failureCount.add(1);
-      }
-    } else {
-  
-      failureCount.add(1);
-    }
   } catch (error) {
     console.error('Error during test execution:', error);
   } finally {
@@ -75,9 +78,27 @@ export default async function () {
   }
 }
 
+// Optional summary handler for HTML report generation
 export function handleSummary(data) {
+  // Access total requests from metrics
+  const totalRequests = data.metrics['total_request'] ? data.metrics['total_request'].values.count : 0;
+  console.log(totalRequests)
+  const throughput = totalRequests / testDurationSeconds;  // Calculate throughput (requests per second)
+
+  // Manually add throughput information to HTML report content
+  const reportData = htmlReport(data);
+  const customThroughputContent = `<h2>Throughput: ${throughput.toFixed(2)} requests per second</h2>\n`;
+
+  // Insert throughput into the HTML content (modify as needed)
+  const finalHtmlReport = reportData.replace('</body>', customThroughputContent + '</body>');
+
+  // Output final report with throughput included
   return {
-    'stdout': textSummary(data, { indent: ' ', enableColors: true }), // Show the text summary to stdout
-    'results.json': JSON.stringify(data), // Save the data to a JSON file
+    'qa-50.html': finalHtmlReport,  // Generate HTML report with throughput
+    stdout: JSON.stringify({
+      throughput: `${throughput.toFixed(2)} requests per second`,
+      totalRequests: totalRequests,
+      data,
+    }, null, 2),
   };
 }

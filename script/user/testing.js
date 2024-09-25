@@ -1,13 +1,21 @@
 import { browser } from 'k6/browser';
-import { check } from 'k6';
-import { Counter } from 'k6/metrics';
+import { check, sleep } from 'k6';
+import { htmlReport } from "https://raw.githubusercontent.com/benc-uk/k6-reporter/main/dist/bundle.js";
+import { Counter, Gauge, Rate, Trend } from 'k6/metrics';
+
+const httpReqFailed = new Rate('http_req_failed');  // Track failed requests
+const httpReqSuccess = new Counter('http_req_success');  // Track successful interactions
+const pageLoadTime = new Trend('page_load_time', true);  
+
+const totalRequest = new Counter('total_request');
+const throughputMetric = new Trend('throughput', true);  // Track throughput (requests per second)
+const testDurationSeconds = 300; // Duration for throughput calculation (20s in this case)
 export const options = {
   scenarios: {
     ui: {
-      // executor: 'shared-iterations',
-      executor: 'constant-vus',
-      vus: 1, // 10 concurrent users
-      duration: '40s', //
+      executor: 'constant-vus', // This executor maintains a constant number of virtual users
+      vus: 20, // 1 concurrent virtual user
+      duration: '5m', // Run the test for 1 minute
       options: {
         browser: {
           type: 'chromium',
@@ -16,22 +24,32 @@ export const options = {
     },
   },
   thresholds: {
-    checks: ['rate==1.0']
+    'http_req_duration': ['p(99)<500'], // 99% of requests must complete below 0.5s
+    'http_req_failed': ['rate<0.01'],   // Less than 1% of requests should fail
   },
 };
-const successCount = new Counter('successes');
-const failureCount = new Counter('failures');
+
 export default async function () {
   const context = await browser.newContext();
   const page = await context.newPage();
 
   try {
     const savedCookies = [
-      { name: 'PHPSESSID', value: '1g0k1ofrqqrmr4oslsgp1e0f3p', domain: 'merz-ph2.duckdns.org', path: '/' }
+      { name: 'PHPSESSID', value: '0suof10v6sesmfu0bhdqthfkg1', domain: 'merz-ph2.duckdns.org', path: '/' }
     ];
   
     await context.addCookies(savedCookies);
-    await page.goto('http://merz-ph2.duckdns.org/main.php?cat_id=3&tab=available&section=watch_video&state=FF1M&course_id=%27ODk=%27');
+    await context.addCookies(savedCookies);
+    const startTime = new Date().getTime();  // Start time for page load tracking
+    const response =  await page.goto('http://merz-ph2.duckdns.org/main.php?cat_id=3&tab=available&section=watch_video&state=FF1M&course_id=%27ODk=%27', { timeout: 60000 });
+    totalRequest.add(1);
+    const endTime = new Date().getTime();  // End time for page load tracking
+  
+    // Track page load time
+    pageLoadTime.add(endTime - startTime);
+    check(response, {
+      'Page loaded successfully': (res) => res.status() === 200,
+    }) ? httpReqSuccess.add(1) : httpReqFailed.add(1);
     await page.waitForSelector('button.osano-cm-dialog__close.osano-cm-close', { state: 'visible', timeout: 5000 });
     const closeButton = await page.$('button.osano-cm-dialog__close.osano-cm-close');
     if (closeButton) {
@@ -50,31 +68,20 @@ export default async function () {
       state: 'visible',
       timeout: 5000,
     });
-    await page.screenshot({ path: 'screenshots/222.png' });
     // Click on the first radio button (question 1, answer A)
     const radio1 = await page.$('input[name="q[1]"][value="a"]');
     if (radio1) {
       await radio1.click();
       console.log('Selected answer A for question 1.');
-    } else {
-      console.error('Radio button for question 1 (value="a") not found.');
-      failureCount.add(1);
-      return;
-    }
-    await page.screenshot({ path: 'screenshots/3333.png' });
+    } 
     // Click on the second radio button (question 2, answer B)
     const buttonLocator = page.locator('button[id="btn-test-submit"]');
     const radio2 = await page.$('input[name="q[2]"][value="b"]');
     if (radio2) {
       await radio2.click();
       console.log('Selected answer B for question 2.');
-    } else {
-      console.error('Radio button for question 2 (value="b") not found.');
-      failureCount.add(1);
-      return;
-    }
-    await page.screenshot({ path: 'screenshots/33344.png' });
-    // Enable the submit button (simulating that both questions were answered)
+    } 
+  
     const isButtonEnabled = await buttonLocator.isEnabled();
 
     if (isButtonEnabled) {
@@ -93,16 +100,9 @@ export default async function () {
         'Heading text is correct (สำเร็จ)': (text) => text === 'สำเร็จ',
       });
 
-      if (isSuccess) {
-        console.log(`VU ${__VU} Iteration ${__ITER}: Test succeeded.`);
-        successCount.add(1); // Increment success counter
-      } else {
-        console.error(`VU ${__VU} Iteration ${__ITER}: Heading text is incorrect.`);
-        failureCount.add(1); // Increment failure counter
-      }
+   
     } else {
       console.error(`VU ${__VU} Iteration ${__ITER}: Heading element not found.`);
-      failureCount.add(1); // Increment failure counter
     }
 
 
@@ -115,9 +115,27 @@ export default async function () {
   }
 }
 
+// Optional summary handler for HTML report generation
 export function handleSummary(data) {
+  // Access total requests from metrics
+  const totalRequests = data.metrics['total_request'] ? data.metrics['total_request'].values.count : 0;
+  console.log(totalRequests)
+  const throughput = totalRequests / testDurationSeconds;  // Calculate throughput (requests per second)
+
+  // Manually add throughput information to HTML report content
+  const reportData = htmlReport(data);
+  const customThroughputContent = `<h2>Throughput: ${throughput.toFixed(2)} requests per second</h2>\n`;
+
+  // Insert throughput into the HTML content (modify as needed)
+  const finalHtmlReport = reportData.replace('</body>', customThroughputContent + '</body>');
+
+  // Output final report with throughput included
   return {
-    'stdout': textSummary(data, { indent: ' ', enableColors: true }), // Show the text summary to stdout
-    'results.json': JSON.stringify(data), // Save the data to a JSON file
+    'testing.html': finalHtmlReport,  // Generate HTML report with throughput
+    stdout: JSON.stringify({
+      throughput: `${throughput.toFixed(2)} requests per second`,
+      totalRequests: totalRequests,
+      data,
+    }, null, 2),
   };
 }

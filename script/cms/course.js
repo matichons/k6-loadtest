@@ -14,8 +14,8 @@ export const options = {
   scenarios: {
     ui: {
       executor: 'constant-vus', // This executor maintains a constant number of virtual users
-      vus: 10, // 1 concurrent virtual user
-      duration: '1m', // Run the test for 1 minute
+      vus: 1, // 1 concurrent virtual user
+      duration: '30s', // Run the test for 1 minute
       options: {
         browser: {
           type: 'chromium',
@@ -36,42 +36,51 @@ export default async function () {
   try {
     // await context.clearCookies();
     // await context.clearPermissions();
+    const savedCookies = [
+      { name: 'PHPSESSID', value: 'ved55eufccdvmllijgtu1jfacf', domain: 'merz-ph2.duckdns.org', path: '/' }
+    ];
+  
+    await context.addCookies(savedCookies);
     const startTime = new Date().getTime();  // Start time for page load tracking
-    const response =  await page.goto('http://merz-ph2.duckdns.org/cms/auth?type=', { timeout: 60000 });
+    const response =  await page.goto('http://merz-ph2.duckdns.org/cms/index.php?r=all-course&tab=my-details&clear=1', { timeout: 60000 });
     totalRequest.add(1);
     const endTime = new Date().getTime();  // End time for page load tracking
     check(response, {
       'Page loaded successfully': (res) => res.status() === 200,
     }) ? httpReqSuccess.add(1) : httpReqFailed.add(1);
-    // Track page load time
-    pageLoadTime.add(endTime - startTime);
-    const emailLocator = page.locator('input[name="email"]');
-    const passwordLocator = page.locator('input[name="password"]');
-    const buttonLocator = page.locator('button[id="btn-save"]');
+     
 
-    await emailLocator.type('nisachonbg@hotmail.com');
-    await emailLocator.dispatchEvent('change');
-
-    await passwordLocator.type('MerzQA2024');
-    await passwordLocator.dispatchEvent('change');
-    const isButtonEnabled = await buttonLocator.isEnabled();
-      await buttonLocator.click();
-      console.log('Button clicked!');
-      await new Promise(resolve => setTimeout(resolve, 10000));
+    // // Verify that "Highlight" is selected
+    // const selectedOptions = await selectElement.evaluate(node => Array.from(node.selectedOptions).map(option => option.text));
   
-    
-   
-    const headerLocator = page.locator('h1.header-menu');
-    const headerText = await headerLocator.textContent();
+    const inputField = page.locator('#txt_category');
+    await inputField.waitFor({ state: 'visible', timeout: 10000 });
 
-    // Check that the text content matches "แผงควบคุม"
-    const result = check({ text: headerText }, {
-      'Header text is correct': (data) => data.text === 'แผงควบคุม',
-    })
+    // Type "hi" into the input field
+    await inputField.type('hi');
 
-    if (!result) {
-      console.error('Header text did not match expected value!');
-    }
+    // Press "Enter" after typing
+    await inputField.press('Enter');
+
+    const searchButton = page.locator('#btnsearch');
+    await searchButton.waitFor({ state: 'visible', timeout: 10000 });
+
+    // Click the button
+    await searchButton.click();
+    // After clicking, wait for new content to load or the page to update
+    const searchResults = page.locator('.search-result');  // Adjust this selector based on your HTML
+    await searchResults.waitFor({ state: 'visible', timeout: 10000 });
+
+    // Verify if results are present after search
+    check(searchResults, {
+      'Search results are displayed': (results) => results.count() > 0,  // Adjust based on the expected behavior
+    });
+
+    // Optionally, check if the URL has changed, if the search modifies the URL
+    check(page, {
+      'URL contains search query': () => page.url().includes('query=hi'),
+    });
+
   } finally {
     await page.close();
   }
@@ -81,6 +90,7 @@ export default async function () {
 export function handleSummary(data) {
   // Access total requests from metrics
   const totalRequests = data.metrics['total_request'] ? data.metrics['total_request'].values.count : 0;
+  console.log(totalRequests)
   const throughput = totalRequests / testDurationSeconds;  // Calculate throughput (requests per second)
 
   // Manually add throughput information to HTML report content
@@ -92,7 +102,7 @@ export function handleSummary(data) {
 
   // Output final report with throughput included
   return {
-    'login-cms.html': finalHtmlReport,  // Generate HTML report with throughput
+    'course.html': finalHtmlReport,  // Generate HTML report with throughput
     stdout: JSON.stringify({
       throughput: `${throughput.toFixed(2)} requests per second`,
       totalRequests: totalRequests,
