@@ -35,13 +35,13 @@ export default async function () {
 
   try {
     const savedCookies = [
-      { name: 'PHPSESSID', value: '0suof10v6sesmfu0bhdqthfkg1', domain: 'merz-ph2.duckdns.org', path: '/' }
+      { name: 'PHPSESSID', value: '1v7t4rsikkuo1shipmfpvbt3kj', domain: '212.80.215.158', path: '/' }
     ];
   
     await context.addCookies(savedCookies);
     await context.addCookies(savedCookies);
     const startTime = new Date().getTime();  // Start time for page load tracking
-    const response =  await page.goto('http://merz-ph2.duckdns.org/main.php?cat_id=3&tab=available&section=watch_video&state=FF1M&course_id=%27ODk=%27', { timeout: 60000 });
+    const response =  await page.goto('http://212.80.215.158/main.php?cat_id=3&tab=available&section=watch_video&state=FF1M&course_id=%27ODk=%27', { timeout: 60000 });
     totalRequest.add(1);
     const endTime = new Date().getTime();  // End time for page load tracking
   
@@ -107,6 +107,7 @@ export default async function () {
 
 
   } catch (error) {
+    httpReqFailed.add(1);
     console.error('Error during test execution:', error);
   } finally {
     // Close the page and browser context

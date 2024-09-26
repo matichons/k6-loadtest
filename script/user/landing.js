@@ -14,7 +14,7 @@ export const options = {
   scenarios: {
     ui: {
       executor: 'constant-vus', // This executor maintains a constant number of virtual users
-      vus: 20, // 1 concurrent virtual user
+      vus: 50, // 1 concurrent virtual user
       duration: '5m', // Run the test for 1 minute
       options: {
         browser: {
@@ -32,11 +32,11 @@ export default async function () {
   const context = await browser.newContext();
   const page = await context.newPage();
   const savedCookies = [
-    { name: 'PHPSESSID', value: 'nq9sa8r1l0frtq5qvm8918a61e', domain: 'merz-ph2.duckdns.org', path: '/' }
+    { name: 'PHPSESSID', value: '1v7t4rsikkuo1shipmfpvbt3kj', domain: '212.80.215.158', path: '/' }
   ];
   await context.addCookies(savedCookies);
   const startTime = new Date().getTime();  // Start time for page load tracking
-  const response =  await page.goto('http://merz-ph2.duckdns.org/main.php?section=home#home', { timeout: 60000 });
+  const response =  await page.goto('http://212.80.215.158/main.php?cat_id=all&tab=available&section=benefits&state=index&course_type=available', { timeout: 60000 });
   totalRequest.add(1);
   const endTime = new Date().getTime();  // End time for page load tracking
 
@@ -45,8 +45,9 @@ export default async function () {
   check(response, {
     'Page loaded successfully': (res) => res.status() === 200,
   }) ? httpReqSuccess.add(1) : httpReqFailed.add(1);
-
-  const targetElement = page.locator('.banner');
+  await sleep(1)
+  try{
+    const targetElement = page.locator('.banner');
     await targetElement.waitFor({ state: 'visible', timeout: 10000 });
 
     // Extract text content from the element
@@ -56,6 +57,11 @@ export default async function () {
     check(textContent, {
       'Text includes "หลักสูตร"': (text) => text.includes('หลักสูตร'),
     });
+  }  catch (error) {
+    httpReqFailed.add(1);
+    console.log('Error verifying success message');
+  }
+  
 }
 
 
@@ -76,7 +82,7 @@ export function handleSummary(data) {
 
   // Output final report with throughput included
   return {
-    'landing-new.html': finalHtmlReport,  // Generate HTML report with throughput
+    'home-50.html': finalHtmlReport,  // Generate HTML report with throughput
     stdout: JSON.stringify({
       throughput: `${throughput.toFixed(2)} requests per second`,
       totalRequests: totalRequests,

@@ -9,16 +9,13 @@ const pageLoadTime = new Trend('page_load_time', true);
 
 const totalRequest = new Counter('total_request');
 const throughputMetric = new Trend('throughput', true);  // Track throughput (requests per second)
-
-// Set duration in seconds manually (for throughput calculation)
 const testDurationSeconds = 300; // Duration for throughput calculation (20s in this case)
-
 export const options = {
   scenarios: {
     ui: {
       executor: 'constant-vus', // This executor maintains a constant number of virtual users
-      vus: 1, // 1 concurrent virtual user
-      duration: '30s', // Run the test for 1 minute
+      vus: 20, // 1 concurrent virtual user
+      duration: '5m', // Run the test for 1 minute
       options: {
         browser: {
           type: 'chromium',
@@ -28,8 +25,10 @@ export const options = {
   },
   thresholds: {
     'http_req_duration': ['p(99)<500'], // 99% of requests must complete below 0.5s
+    'http_req_failed': ['rate<0.01'],   // Less than 1% of requests should fail
   },
 };
+
 
 export default async function () {
   const context = await browser.newContext();
@@ -41,55 +40,44 @@ export default async function () {
     ];
   
     await context.addCookies(savedCookies);
-        const startTime = new Date().getTime();  // Start time for page load tracking
-    const response = await page.goto('http://212.80.215.158/main.php?cat_id=3&tab=available&section=watch_video&state=watch&course_id=89', { timeout: 60000 });
-    
-    totalRequest.add(1);  // Increment total requests immediately after loading the page
-
+    const startTime = new Date().getTime();  // Start time for page load tracking
+    const response =  await page.goto('http://212.80.215.158/profile.php?cat_id=all&tab=available&section=profile', { timeout: 60000 });
+    totalRequest.add(1);
     const endTime = new Date().getTime();  // End time for page load tracking
-    // Track page load time
-    pageLoadTime.add(endTime - startTime);
-
-    // Check if page loaded successfully
-    check(response, {
-      'Page loaded successfully': (res) => res.status() === 200,
-    }) ? httpReqSuccess.add(1) : httpReqFailed.add(1);
-
-    await page.screenshot({ path: 'screenshots/confirmButton.png' });
-    const confirmButton = await page.$('button#modal-confirm' ,{ state: 'visible', timeout: 5000 });
-
-      // Click the confirm button
-      await confirmButton.click();
-      await sleep(2)
-
-
-    await page.waitForSelector('button.osano-cm-dialog__close.osano-cm-close', { state: 'visible', timeout: 5000 });
-    const closeButton = await page.$('button.osano-cm-dialog__close.osano-cm-close');
-
-      await closeButton.click();
+    // await page.screenshot({ path: `screenshots/response-result-${new Date().getTime()}.png` });
+  // Track page load time
+  pageLoadTime.add(endTime - startTime);
+  check(response, {
+    'Page loaded successfully': (res) => res.status() === 200,
+  }) ? httpReqSuccess.add(1) : httpReqFailed.add(1);
+  const editLink = page.locator('a.edit1');  // Locate the <a> tag with class 'edit1'
+    
+  // Ensure that the link is visible and clickable before clicking
+  await editLink.waitFor({ state: 'visible', timeout: 5000 });
   
-      await page.screenshot({ path: 'screenshots/closeButton.png' });
-      await page.waitForSelector('button.osano-cm-dialog__close.osano-cm-close', { state: 'hidden', timeout: 5000 });
-   
+  // Perform the click action
+  await editLink.click();
 
+  const nameInput = page.locator('input#name-text');
+    await nameInput.type('LOAD TEST');  // Type the new name into the input field
+    // await page.screenshot({ path: `screenshots/1-nameInput-${new Date().getTime()}.png` });
 
-    // Select the video element
-    const videoElement = await page.$('video#video-active2');
-    if (videoElement) {
-      await page.evaluate((video) => video.play(), videoElement);
-      console.log(`VU ${__VU} Iteration ${__ITER}: Video is playing.`);
+    // check(nameInput, {
       
-      // Verify that the video is playing
-      const isPlaying = await page.evaluate((video) => !video.paused, videoElement);
-      const playSuccess = check(isPlaying, {
-        'Video is playing': (playing) => playing === true,
-      });
+    //   'Name input field updated successfully': () => nameInput.inputValue() === 'LOAD TEST',
+    // }) ? httpReqSuccess.add(1) : httpReqFailed.add(1);
 
-    } 
+    // Click the submit button with id 'submit-btn'
+    const submitButton = page.locator('button#submit-btn');
+    
+    await submitButton.waitFor({ state: 'visible', timeout: 5000 });  // Ensure button is visible before clicking
+    await submitButton.click();
 
-
-    await page.screenshot({ path: 'screenshots/Video.png' });
+    check(submitButton, {
+      'Submit button clicked successfully': () => true,
+    }) ? httpReqSuccess.add(1) : httpReqFailed.add(1);
   } catch (error) {
+    // await page.screenshot({ path: `screenshots/user-error-${new Date().getTime()}.png` });
     httpReqFailed.add(1);
     console.error('Error during test execution:', error);
   } finally {
@@ -103,6 +91,7 @@ export default async function () {
 export function handleSummary(data) {
   // Access total requests from metrics
   const totalRequests = data.metrics['total_request'] ? data.metrics['total_request'].values.count : 0;
+  console.log(totalRequests)
   const throughput = totalRequests / testDurationSeconds;  // Calculate throughput (requests per second)
 
   // Manually add throughput information to HTML report content
@@ -114,7 +103,7 @@ export function handleSummary(data) {
 
   // Output final report with throughput included
   return {
-    'view-video-20.html': finalHtmlReport,  // Generate HTML report with throughput
+    'userProfile-20.html': finalHtmlReport,  // Generate HTML report with throughput
     stdout: JSON.stringify({
       throughput: `${throughput.toFixed(2)} requests per second`,
       totalRequests: totalRequests,

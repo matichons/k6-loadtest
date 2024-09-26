@@ -15,8 +15,8 @@ export const options = {
   scenarios: {
     ui: {
       executor: 'constant-vus',
-      vus: 40, // 40 concurrent virtual users
-      duration: '1m',
+      vus: 20, // 40 concurrent virtual users
+      duration: '5m',
       options: {
         browser: {
           type: 'chromium',
@@ -114,7 +114,7 @@ export function handleSummary(data) {
   const finalHtmlReport = reportData.replace('</body>', customThroughputContent + '</body>');
 
   return {
-    'login-5011.html': finalHtmlReport,
+    'login-20.html': finalHtmlReport,
     stdout: JSON.stringify({
       throughput: `${throughput.toFixed(2)} requests per second`,
       totalRequests: totalRequests,

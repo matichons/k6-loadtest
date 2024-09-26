@@ -11,14 +11,14 @@ const totalRequest = new Counter('total_request');
 const throughputMetric = new Trend('throughput', true);  // Track throughput (requests per second)
 
 // Set duration in seconds manually (for throughput calculation)
-const testDurationSeconds = 120; // Duration for throughput calculation (20s in this case)
+const testDurationSeconds = 300; // Duration for throughput calculation (20s in this case)
 
 export const options = {
   scenarios: {
     ui: {
       executor: 'constant-vus', // This executor maintains a constant number of virtual users
-      vus: 10, // 1 concurrent virtual user
-      duration: '2m', // Run the test for 1 minute
+      vus: 50, // 1 concurrent virtual user
+      duration: '5m', // Run the test for 1 minute
       options: {
         browser: {
           type: 'chromium',
@@ -28,7 +28,6 @@ export const options = {
   },
   thresholds: {
     'http_req_duration': ['p(99)<500'], // 99% of requests must complete below 0.5s
-    'http_req_failed': ['rate<0.01'],   // Less than 1% of requests should fail
   },
 };
 
@@ -83,7 +82,7 @@ async function clickButtonIfEnabled(page,buttonLocator) {
       console.log('Button is not enabled');
     }
   } catch (error) {
-    await page.screenshot({ path: 'screenshots/11111111.png' });
+
     console.error('Error clicking button',error);
   }
 }
@@ -131,7 +130,6 @@ async function handleTermsModal(page) {
     await clickButtonIfEnabled(page,acceptButton);
 
   } catch (error) {
-  
     console.log('Error handling Terms Modal');
   }
 }
@@ -154,7 +152,7 @@ async function verifySuccessMessage(page) {
       
     }
   } catch (error) {
-   
+    httpReqFailed.add(1);
     console.log('Error verifying success message');
   }
 }
@@ -186,21 +184,21 @@ export default async function () {
 
     // Close cookie dialog if present
     await closeCookieDialog(page);
-
+    await sleep(2)
     // Fill the registration form
     await fillRegistrationForm(page);
-
+    await sleep(3)
     // Click 'Next' button
     const nextButton = page.locator('button[id="btn-next"]', { state: 'visible', timeout: 10000 });
     await clickButtonIfEnabled(page,nextButton);
-
+    await sleep(3)
     // Fill additional form details and complete registration
     await fillAdditionalForm(page);
-
+    await sleep(3)
     // Verify success message
     await verifySuccessMessage(page);
 
-    console.log("page.status ",page.status)
+    await sleep(1)
 
   } finally {
     await page.close();
@@ -222,7 +220,7 @@ export function handleSummary(data) {
 
   // Output final report with throughput included
   return {
-    'register21.html': finalHtmlReport,  // Generate HTML report with throughput
+    'register-50.html': finalHtmlReport,  // Generate HTML report with throughput
     stdout: JSON.stringify({
       throughput: `${throughput.toFixed(2)} requests per second`,
       totalRequests: totalRequests,

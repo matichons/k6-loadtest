@@ -14,7 +14,7 @@ export const options = {
   scenarios: {
     ui: {
       executor: 'constant-vus', // This executor maintains a constant number of virtual users
-      vus: 50, // 1 concurrent virtual user
+      vus: 20, // 1 concurrent virtual user
       duration: '5m', // Run the test for 1 minute
       options: {
         browser: {
@@ -36,12 +36,12 @@ export default async function () {
 
   try {
     const savedCookies = [
-      { name: 'PHPSESSID', value: '1g0k1ofrqqrmr4oslsgp1e0f3p', domain: 'merz-ph2.duckdns.org', path: '/' }
+      { name: 'PHPSESSID', value: '1v7t4rsikkuo1shipmfpvbt3kj', domain: '212.80.215.158', path: '/' }
     ];
   
     await context.addCookies(savedCookies);
     const startTime = new Date().getTime();  // Start time for page load tracking
-    const response =  await page.goto('http://merz-ph2.duckdns.org/q-a.php?cat_id=all&tab=available&section=qa', { timeout: 60000 });
+    const response =  await page.goto('http://212.80.215.158/q-a.php?cat_id=all&tab=available&section=qa', { timeout: 60000 });
     totalRequest.add(1);
     const endTime = new Date().getTime();  // End time for page load tracking
 
@@ -70,6 +70,7 @@ export default async function () {
 
     
   } catch (error) {
+    httpReqFailed.add(1);
     console.error('Error during test execution:', error);
   } finally {
     // Close the page and browser context
