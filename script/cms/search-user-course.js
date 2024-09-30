@@ -67,7 +67,7 @@ export default async function () {
 
     // Navigate to the form page
     const response = await page.goto(
-      'http://212.80.215.158/cms/index.php?r=course-user-add&id=152&lang=TH',
+      'http://212.80.215.158/cms/index.php?r=course-user-list&id=141&tab=all-user&lang=TH&clear=1',
       { waitUntil: 'networkidle', timeout: 60000 }
     );
 
@@ -80,50 +80,27 @@ export default async function () {
 
     pageLoadSuccess ? httpReqSuccess.add(1) : httpReqFailed.add(1);
 
+    // await page.screenshot({ path: `screenshots/pageLoadSuccess.png` });
+
+    const searchButton = page.locator('#btnsearch');
+    await searchButton.waitFor({ state: 'visible', timeout: 10000 });
+    await searchButton.click();
+//  await page.screenshot({ path: `screenshots/form_filled.png` });
+    // Give time for table updates
     await sleep(1);
 
+    // Wait for table to be visible and check its content
+    const table = page.locator('#myTable tbody');
+    await table.waitFor({ state: 'visible', timeout: 10000 });
+    const tableText = await table.textContent();
 
-    // Fill in the name field
-    await page
-      .locator('input#txt_name')
-      .type(generateRandomName(), { delay: 100 });
-
-    // Fill in the email field
-    await page
-      .locator('input#txt_email')
-      .type(generateRandomEmail(), { delay: 100 });
-
-    // Select an option in the clinic dropdown
-    await page.locator('select#txt_clinic').selectOption('c_1000'); // Replace 'c_1000' with desired value
-
-    // await page.screenshot({ path: `screenshots/form_filled.png` });
-    await sleep(1);
-    const buttonLocator = page.locator('button[id="btn-save"]');
-    await buttonLocator.isEnabled();
-      await buttonLocator.click();
-
-      const modal = page.locator('#confirmModal');
-      await modal.waitFor({ state: 'visible', timeout: 10000 });
-      // await page.screenshot({ path: `screenshots/confirmModal-${new Date().getTime()}.png` });
-      // Locate the element containing the text "สำเร็จ"
-      const successText = page.locator('#confirm1');
-      await successText.waitFor({ state: 'visible', timeout: 10000 });
-      check(await successText.textContent(), {
-       'Modal contains text = "สำเร็จ"': (text) => text.trim() === 'สำเร็จ',
-   });
-
-  page.waitForSelector('div#confirmModal.show', { state: 'visible', timeout: 10000 });
-
-// Refine the button locator within the specific modal
-const buttonLocator1 = page.locator('div#confirmModal.show button#modal-confirm');
-
-// Wait for the button to be visible and enabled
-buttonLocator1.waitFor({ state: 'visible', timeout: 10000 });
-  buttonLocator1.click({ 
-        force: true, // Force the click to bypass strict checks
-        timeout: 10000 // Set timeout to handle potential delays
+    // Check for expected text in the table
+    check(tableText, {
+        'Table contains expected text = LOAD TEST': (text) => text.includes('LOAD TEST')
     });
-  
+
+    // Optional wait
+    await sleep(1);
 
   } catch (e) {
     // Log the error and increment failed request counter
@@ -152,7 +129,7 @@ export function handleSummary(data) {
 
   // Output final report with throughput included
   return {
-    'add-user-course.html': finalHtmlReport,  // Generate HTML report with throughput
+    'search-user-course.html': finalHtmlReport,  // Generate HTML report with throughput
     stdout: JSON.stringify({
       throughput: `${throughput.toFixed(2)} requests per second`,
       totalRequests: totalRequests,
