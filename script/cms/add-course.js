@@ -14,8 +14,8 @@ export const options = {
   scenarios: {
     ui: {
       executor: 'constant-vus', // This executor maintains a constant number of virtual users
-      vus: 20, // 1 concurrent virtual user
-      duration: '5m', // Run the test for 1 minute
+      vus: 1, // 1 concurrent virtual user
+      duration: '30s', // Run the test for 1 minute
       options: {
         browser: {
           type: 'chromium',
@@ -37,13 +37,13 @@ export default async function () {
   try {
       // Add saved cookies for session management
       const savedCookies = [
-          { name: 'PHPSESSID', value: 'km8h6jgdtbs8g5bb6vse48k235', domain: 'merz-ph2.duckdns.org', path: '/' }
+          { name: 'PHPSESSID', value: '5f8evo8h2ci034h8m1kvm0nsvr', domain: '212.80.215.158', path: '/' }
       ];
       await context.addCookies(savedCookies);
 
       // Track request timings
       const startTime = new Date().getTime();
-      const response = await page.goto('http://merz-ph2.duckdns.org/cms/index.php?r=all-course&tab=my-details&clear=1', { timeout: 60000 });
+      const response = await page.goto('http://212.80.215.158/cms/index.php?r=add-course-step1&lang=th', { timeout: 60000 });
       const endTime = new Date().getTime();
       totalRequest.add(1);
 
@@ -51,32 +51,38 @@ export default async function () {
       check(response, {
           'Page loaded successfully': (res) => res.status() === 200,
       }) ? httpReqSuccess.add(1) : httpReqFailed.add(1);
+      // await sleep(5);
+      await page.screenshot({ path: `screenshots/222-${new Date().getTime()}.png` });
+// Wait for and click the upload button
+const uploadButton = page.locator('#btn-upload');
+await uploadButton.waitFor({ state: 'visible', timeout: 10000 });
+await uploadButton.click();
+await page.screenshot({ path: `screenshots/123-${new Date().getTime()}.png` });
+// Wait for file input and attach a file
+const fileInput = page.locator('#img_header');
+await fileInput.waitFor({ state: 'visible', timeout: 10000 });
 
-      // Wait for and interact with the search input field
-      const inputField = page.locator('#txt_category');
-      await inputField.waitFor({ state: 'visible', timeout: 10000 });
-      await inputField.type('hi');
-      await inputField.press('Enter');
+// Provide the file path and read its contents
+const filePath = path.resolve(__dirname, './sample-image.png'); // Replace with your local image path
+const fileContents = readFileSync(filePath);
 
-      // Wait for and click the search button
-      const searchButton = page.locator('#btnsearch');
-      await searchButton.waitFor({ state: 'visible', timeout: 10000 });
-      await searchButton.click();
+// Set the file to the input element
+await fileInput.setInputFiles({ name: 'sample-image.jpg', mimeType: 'image/png', buffer: fileContents });
 
-      // Give time for table updates
-      await sleep(1);
+// Wait for the progress bar to become visible (if applicable)
+const progressBar = page.locator('#divLoad');
+await progressBar.waitFor({ state: 'visible', timeout: 10000 });
 
-      // Wait for table to be visible and check its content
-      const table = page.locator('#myTable tbody');
-      await table.waitFor({ state: 'visible', timeout: 10000 });
-      const tableText = await table.textContent();
+// Wait until the upload completes (you might need to adjust the sleep duration)
+await sleep(5);
+await page.screenshot({ path: `screenshots/1111-${new Date().getTime()}.png` });
+// You can add more checks here to verify the successful upload
+check(page, {
+    'Image upload initiated': () => progressBar.isVisible(),
+    // Add more checks as necessary
+});
 
-      // Check for expected text in the table
-      check(tableText, {
-          'Table contains expected text = TH_CaHA MOA': (text) => text.includes('TH_CaHA MOA')
-      });
-
-      // Optional wait
+      await page.screenshot({ path: `screenshots/error-${new Date().getTime()}.png` });
       await sleep(1);
 
   } catch (error) {

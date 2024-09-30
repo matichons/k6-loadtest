@@ -14,8 +14,8 @@ export const options = {
   scenarios: {
     ui: {
       executor: 'constant-vus', // This executor maintains a constant number of virtual users
-      vus: 20, // 1 concurrent virtual user
-      duration: '5m', // Run the test for 1 minute
+      vus: 1, // 1 concurrent virtual user
+      duration: '30s', // Run the test for 1 minute
       options: {
         browser: {
           type: 'chromium',
@@ -37,48 +37,54 @@ export default async function () {
   try {
       // Add saved cookies for session management
       const savedCookies = [
-          { name: 'PHPSESSID', value: 'km8h6jgdtbs8g5bb6vse48k235', domain: 'merz-ph2.duckdns.org', path: '/' }
+          { name: 'PHPSESSID', value: '5f8evo8h2ci034h8m1kvm0nsvr', domain: '212.80.215.158', path: '/' }
       ];
       await context.addCookies(savedCookies);
 
-      // Track request timings
       const startTime = new Date().getTime();
-      const response = await page.goto('http://merz-ph2.duckdns.org/cms/index.php?r=all-course&tab=my-details&clear=1', { timeout: 60000 });
+      const response = await page.goto('http://212.80.215.158/cms/index.php?r=edit-course-step1&id=152&lang=th', { timeout: 60000 });
       const endTime = new Date().getTime();
       totalRequest.add(1);
 
-      // Check if the page is loaded successfully
       check(response, {
           'Page loaded successfully': (res) => res.status() === 200,
       }) ? httpReqSuccess.add(1) : httpReqFailed.add(1);
-
-      // Wait for and interact with the search input field
-      const inputField = page.locator('#txt_category');
+      await sleep(2);
+      
+      const inputField = page.locator('#txt_subject');
       await inputField.waitFor({ state: 'visible', timeout: 10000 });
-      await inputField.type('hi');
-      await inputField.press('Enter');
+      await inputField.fill('');
 
-      // Wait for and click the search button
-      const searchButton = page.locator('#btnsearch');
-      await searchButton.waitFor({ state: 'visible', timeout: 10000 });
-      await searchButton.click();
-
-      // Give time for table updates
+      const textToInput = 'loadtest'; 
+      await inputField.type(textToInput);
+        //  await page.screenshot({ path: `screenshots/222-${new Date().getTime()}.png` });
+      const buttonLocator = page.locator('button[id="btn-save-all"]');
+      buttonLocator.waitFor({ state: 'visible', timeout: 10000 });
+      buttonLocator.click()
       await sleep(1);
+     
+      // await sleep(1);
+   // Wait for the modal to be visible
+   const modal = page.locator('#confirmModal');
+   await modal.waitFor({ state: 'visible', timeout: 10000 });
+   await page.screenshot({ path: `screenshots/confirmModal-${new Date().getTime()}.png` });
+   // Locate the element containing the text "สำเร็จ"
+   const successText = page.locator('#confirm1');
+   await successText.waitFor({ state: 'visible', timeout: 10000 });
+   check(await successText.textContent(), {
+    'Modal contains text = "สำเร็จ"': (text) => text.trim() === 'สำเร็จ',
+});
+// await page.screenshot({ path: `screenshots/confirm1-${new Date().getTime()}.png` });
+const confirmButton = page.locator('#modal-confirm');
+await confirmButton.waitFor({ state: 'visible', timeout: 10000 });
+await confirmButton.click();
 
-      // Wait for table to be visible and check its content
-      const table = page.locator('#myTable tbody');
-      await table.waitFor({ state: 'visible', timeout: 10000 });
-      const tableText = await table.textContent();
 
-      // Check for expected text in the table
-      check(tableText, {
-          'Table contains expected text = TH_CaHA MOA': (text) => text.includes('TH_CaHA MOA')
-      });
+   // Verify that the text content is as expected
 
-      // Optional wait
-      await sleep(1);
-
+   // Optional sleep to observe the modal
+   await sleep(4);
+   await page.screenshot({ path: `screenshots/end-${new Date().getTime()}.png` });
   } catch (error) {
       // Increment failed request counter in case of error
       httpReqFailed.add(1);
@@ -104,7 +110,7 @@ export function handleSummary(data) {
 
   // Output final report with throughput included
   return {
-    'course.html': finalHtmlReport,  // Generate HTML report with throughput
+    'edit-course.html': finalHtmlReport,  // Generate HTML report with throughput
     stdout: JSON.stringify({
       throughput: `${throughput.toFixed(2)} requests per second`,
       totalRequests: totalRequests,
