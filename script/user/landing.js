@@ -32,7 +32,7 @@ export default async function () {
   const context = await browser.newContext();
   const page = await context.newPage();
   const savedCookies = [
-    { name: 'PHPSESSID', value: '1v7t4rsikkuo1shipmfpvbt3kj', domain: '212.80.215.158', path: '/' }
+    { name: 'PHPSESSID', value: 'p47keu3jvnrramia050j51rjod', domain: '212.80.215.158', path: '/' }
   ];
   await context.addCookies(savedCookies);
   const startTime = new Date().getTime();  // Start time for page load tracking
@@ -80,9 +80,10 @@ export function handleSummary(data) {
   // Insert throughput into the HTML content (modify as needed)
   const finalHtmlReport = reportData.replace('</body>', customThroughputContent + '</body>');
 
-  // Output final report with throughput included
+  const dateTime = new Date().toISOString().replace(/:/g, '-'); // Replace ':' with '-' to avoid issues in filenames
+  const fileName = `home-${dateTime}-50.html`;
   return {
-    'home-50.html': finalHtmlReport,  // Generate HTML report with throughput
+    [fileName]: finalHtmlReport,
     stdout: JSON.stringify({
       throughput: `${throughput.toFixed(2)} requests per second`,
       totalRequests: totalRequests,

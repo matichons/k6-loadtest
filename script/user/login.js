@@ -114,7 +114,7 @@ export function handleSummary(data) {
   const finalHtmlReport = reportData.replace('</body>', customThroughputContent + '</body>');
 
   return {
-    'login-50.html': finalHtmlReport,
+    [`login-${Date.now()}-50.html`]: finalHtmlReport,
     stdout: JSON.stringify({
       throughput: `${throughput.toFixed(2)} requests per second`,
       totalRequests: totalRequests,

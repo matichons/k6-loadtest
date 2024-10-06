@@ -59,12 +59,14 @@ async function closeCookieDialog(page) {
 // Function to fill the registration form
 async function fillRegistrationForm(page) {
   try {
+
     await page.locator('input[id="txtemail"]').type(generateRandomEmail());
-    await page.locator('input[id="txtpassword1"]').type('Merz2024');
-    await page.locator('input[id="txtpassword2"]').type('Merz2024');
+
+
     check(page, {
       'Registration form filled': (p) => p.locator('input[id="txtemail"]').isVisible(),
     });
+
   } catch (error) {
 
     console.log('Error filling registration form');
@@ -73,18 +75,15 @@ async function fillRegistrationForm(page) {
 
 // Function to handle button clicks with validation and screenshots
 async function clickButtonIfEnabled(page,buttonLocator) {
-  try {
+
     if (await buttonLocator.isEnabled()) {
       await buttonLocator.click();
-      console.log(`Button clicked: ${screenshotPath}`);
+      // console.log(`Button clicked: ${screenshotPath}`);
   
     } else {
       console.log('Button is not enabled');
     }
-  } catch (error) {
-
-    console.error('Error clicking button',error);
-  }
+    // await page.screenshot({ path: `screenshots/error.png` });
 }
 
 // Function to fill additional form details
@@ -117,20 +116,47 @@ async function fillAdditionalForm(page) {
 async function handleTermsModal(page) {
   try {
     console.log('Handling the Terms Modal...');
-    await page.waitForSelector('#termModal', { state: 'visible', timeout: 10000 });
-    await page.evaluate(() => {
-      const btn = document.getElementById('btn-short');
-      if (btn) btn.click();
-      const modalContent = document.getElementById('short-message');
-      if (modalContent) modalContent.scrollTop = modalContent.scrollHeight;
-    });
-    const checkbox = page.locator('#chkTerm');
-    await checkbox.click();
-    const acceptButton = page.locator('button[id="btn-accept"]');
-    await clickButtonIfEnabled(page,acceptButton);
+    // await page.waitForSelector('#termModal', { state: 'visible', timeout: 10000 });
+    // await page.evaluate(() => {
+    //   const btn = document.getElementById('btn-short');
+    //   if (btn) btn.click();
+    //   const modalContent = document.getElementById('short-message');
+    //    sleep(0.5)
+    //   if (modalContent) modalContent.scrollTop = modalContent.scrollHeight;
+    // });
+    // sleep(2)
+    // await page.screenshot({ path: `screenshots/123.png` });
+    // const checkbox = page.locator('#chkTerm');
+    // await checkbox.click();
+    // const acceptButton = page.locator('button[id="btn-accept"]');
+    // await clickButtonIfEnabled(page,acceptButton);
 
+
+    await page.waitForSelector('#termModal');
+
+    // Scroll down inside the modal to reveal the disabled checkbox
+    await page.evaluate(() => {
+      const modalContent = document.querySelector('#short-message');
+      modalContent.scrollTo(0, modalContent.scrollHeight);
+    });
+  
+    // Enable the checkbox (if required by JavaScript logic)
+    await page.evaluate(() => {
+      const checkbox = document.querySelector('#chkTerm');
+      checkbox.disabled = false; // Remove the disabled attribute
+    });
+  
+    // Click the checkbox
+    await page.click('#chkTerm');
+  
+    // Click the accept button
+    await page.click('#btn-accept');
   } catch (error) {
-    console.log('Error handling Terms Modal');
+
+    console.log('Error handling Terms Modal:', error);
+    console.log('Error type:', typeof error);
+    console.log('Error message:', error.message);
+    console.log('Error stack:', error.stack);
   }
 }
 
@@ -166,7 +192,7 @@ export default async function () {
     await context.clearPermissions();
     try {
       const startTime = new Date().getTime();  // Start time for page load tracking
-      const response =  await page.goto('http://merz-ph2.duckdns.org/register.php?step=step1', { timeout: 60000 });
+      const response =  await page.goto('http://212.80.215.158/register.php?step=step1', { timeout: 60000 });
       totalRequest.add(1);
       const endTime = new Date().getTime();  // End time for page load tracking
   
@@ -187,13 +213,33 @@ export default async function () {
     await sleep(2)
     // Fill the registration form
     await fillRegistrationForm(page);
+    // const password = generatePassword();
+    await page.locator('input[id="txtpassword2"]').waitFor({ state: 'visible' });
+    await page.locator('input[id="txtpassword1"]').waitFor({ state: 'visible' });
+
+    
+    
+     const show2 = page.locator('#show_password2');
+    await show2.waitFor({ state: 'visible', timeout: 10000 });
+    await show2.click()
+    const show = page.locator('#show_password1');
+    await show.waitFor({ state: 'visible', timeout: 10000 });
+    await show.click()
+        
+    // Focus on the fields before typin 
+    await page.locator('input[id="txtpassword1"]').type('AAss0011');
+    await page.locator('input[id="txtpassword2"]').type('AAss0011'); 
+    // await page.screenshot({ path: `screenshots/Registration.png` });
     await sleep(3)
     // Click 'Next' button
     const nextButton = page.locator('button[id="btn-next"]', { state: 'visible', timeout: 10000 });
     await clickButtonIfEnabled(page,nextButton);
+    // await page.screenshot({ path: `screenshots/nextButton.png` });
     await sleep(3)
     // Fill additional form details and complete registration
     await fillAdditionalForm(page);
+    // await sleep(3)
+    // await page.screenshot({ path: `screenshots/fillAdditionalForm.png` });
     await sleep(3)
     // Verify success message
     await verifySuccessMessage(page);
@@ -215,15 +261,15 @@ export function handleSummary(data) {
   const reportData = htmlReport(data);
   const customThroughputContent = `<h2>Throughput: ${throughput.toFixed(2)} requests per second</h2>\n`;
 
-  // Insert throughput into the HTML content (modify as needed)
   const finalHtmlReport = reportData.replace('</body>', customThroughputContent + '</body>');
+  const dateTime = new Date().toISOString().replace(/:/g, '-');
+  const fileName = `register-${dateTime}-report.html`;
 
-  // Output final report with throughput included
   return {
-    'register-50.html': finalHtmlReport,  // Generate HTML report with throughput
+    [fileName]: finalHtmlReport,
     stdout: JSON.stringify({
       throughput: `${throughput.toFixed(2)} requests per second`,
-      totalRequests: totalRequests,
+      totalRequests,
       data,
     }, null, 2),
   };

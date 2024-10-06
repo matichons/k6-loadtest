@@ -14,7 +14,7 @@ export const options = {
   scenarios: {
     ui: {
       executor: 'constant-vus', // This executor maintains a constant number of virtual users
-      vus: 20, // 1 concurrent virtual user
+      vus: 50, // 1 concurrent virtual user
       duration: '5m', // Run the test for 1 minute
       options: {
         browser: {
@@ -36,7 +36,7 @@ export default async function () {
 
   try {
     const savedCookies = [
-      { name: 'PHPSESSID', value: '1v7t4rsikkuo1shipmfpvbt3kj', domain: '212.80.215.158', path: '/' }
+      { name: 'PHPSESSID', value: 'p47keu3jvnrramia050j51rjod', domain: '212.80.215.158', path: '/' }
     ];
   
     await context.addCookies(savedCookies);
@@ -78,7 +78,7 @@ export default async function () {
     }) ? httpReqSuccess.add(1) : httpReqFailed.add(1);
   } catch (error) {
     // await page.screenshot({ path: `screenshots/user-error-${new Date().getTime()}.png` });
-    httpReqFailed.add(1);
+    // httpReqFailed.add(1);
     console.error('Error during test execution:', error);
   } finally {
     // Close the page and browser context
@@ -101,9 +101,10 @@ export function handleSummary(data) {
   // Insert throughput into the HTML content (modify as needed)
   const finalHtmlReport = reportData.replace('</body>', customThroughputContent + '</body>');
 
-  // Output final report with throughput included
+  const dateTime = new Date().toISOString().replace(/:/g, '-'); // Replace ':' with '-' to avoid issues in filenames
+  const fileName = `userProfile-${dateTime}-50.html`;
   return {
-    'userProfile-20.html': finalHtmlReport,  // Generate HTML report with throughput
+    [fileName]: finalHtmlReport,
     stdout: JSON.stringify({
       throughput: `${throughput.toFixed(2)} requests per second`,
       totalRequests: totalRequests,

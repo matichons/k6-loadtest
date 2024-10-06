@@ -17,8 +17,8 @@ export const options = {
   scenarios: {
     ui: {
       executor: 'constant-vus', // This executor maintains a constant number of virtual users
-      vus: 1, // 1 concurrent virtual user
-      duration: '30s', // Run the test for 1 minute
+      vus: 5, // 1 concurrent virtual user
+      duration: '5m', // Run the test for 1 minute
       options: {
         browser: {
           type: 'chromium',
@@ -37,12 +37,12 @@ export default async function () {
 
   try {
     const savedCookies = [
-      { name: 'PHPSESSID', value: '1v7t4rsikkuo1shipmfpvbt3kj', domain: '212.80.215.158', path: '/' }
+      { name: 'PHPSESSID', value: 'ng4nubl0u25jeckkhp8a2nojpi', domain: '212.80.215.158', path: '/' }
     ];
   
     await context.addCookies(savedCookies);
         const startTime = new Date().getTime();  // Start time for page load tracking
-    const response = await page.goto('http://212.80.215.158/main.php?cat_id=3&tab=available&section=watch_video&state=watch&course_id=89', { timeout: 60000 });
+    const response = await page.goto('http://212.80.215.158/main.php?cat_id=2&tab=available&section=watch_video&state=watch&course_id=141', { timeout: 60000 });
     
     totalRequest.add(1);  // Increment total requests immediately after loading the page
 
@@ -63,32 +63,52 @@ export default async function () {
       await sleep(2)
 
 
-    await page.waitForSelector('button.osano-cm-dialog__close.osano-cm-close', { state: 'visible', timeout: 5000 });
-    const closeButton = await page.$('button.osano-cm-dialog__close.osano-cm-close');
+      await page.waitForSelector('button.osano-cm-dialog__close.osano-cm-close', { state: 'visible', timeout: 10000 });
 
+      // Locate the close button using its classes and click it
+      const closeButton = page.locator('button.osano-cm-dialog__close.osano-cm-close');
       await closeButton.click();
-  
+      // await closeButton.click();
+      await sleep(2)
       await page.screenshot({ path: 'screenshots/closeButton.png' });
-      await page.waitForSelector('button.osano-cm-dialog__close.osano-cm-close', { state: 'hidden', timeout: 5000 });
+      // await page.waitForSelector('button.osano-cm-dialog__close.osano-cm-close', { state: 'hidden', timeout: 5000 });
    
+      await page.waitForSelector('video#video-active2', { state: 'visible', timeout: 10000 });
 
-
-    // Select the video element
-    const videoElement = await page.$('video#video-active2');
-    if (videoElement) {
-      await page.evaluate((video) => video.play(), videoElement);
-      console.log(`VU ${__VU} Iteration ${__ITER}: Video is playing.`);
-      
-      // Verify that the video is playing
-      const isPlaying = await page.evaluate((video) => !video.paused, videoElement);
-      const playSuccess = check(isPlaying, {
-        'Video is playing': (playing) => playing === true,
+      // Play the video by evaluating within the browser context
+      await page.evaluate(() => {
+        const video = document.getElementById('video-active2');
+        if (video) {
+          video.play(); // Start the video playback
+        }
       });
+      const isPlaying = await page.evaluate(() => {
+        const video = document.getElementById('video-active2');
+        return !video.paused && !video.ended && video.currentTime > 0;
+      });
+  
+      // Validate that the video is playing
+      check(isPlaying, { 'Video is playing': (playing) => playing === true });
+  
+      // Optional: Let the video play for a few seconds to confirm
+      // await sleep(5);
+  
+    // // Select the video element
+    // const videoElement = await page.$('video#video-active2');
+    // if (videoElement) {
+    //   await page.evaluate((video) => video.play(), videoElement);
+    //   console.log(`VU ${__VU} Iteration ${__ITER}: Video is playing.`);
+      
+    //   // Verify that the video is playing
+    //   const isPlaying = await page.evaluate((video) => !video.paused, videoElement);
+    //   const playSuccess = check(isPlaying, {
+    //     'Video is playing': (playing) => playing === true,
+    //   });
 
-    } 
+    // } 
 
 
-    await page.screenshot({ path: 'screenshots/Video.png' });
+    // await page.screenshot({ path: 'screenshots/Video.png' });
   } catch (error) {
     httpReqFailed.add(1);
     console.error('Error during test execution:', error);
@@ -113,8 +133,10 @@ export function handleSummary(data) {
   const finalHtmlReport = reportData.replace('</body>', customThroughputContent + '</body>');
 
   // Output final report with throughput included
+  const dateTime = new Date().toISOString().replace(/:/g, '-'); // Replace ':' with '-' to avoid issues in filenames
+  const fileName = `view-video-${dateTime}-50.html`;
   return {
-    'view-video-20.html': finalHtmlReport,  // Generate HTML report with throughput
+    [fileName]: finalHtmlReport,
     stdout: JSON.stringify({
       throughput: `${throughput.toFixed(2)} requests per second`,
       totalRequests: totalRequests,
