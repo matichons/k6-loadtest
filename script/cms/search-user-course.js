@@ -14,8 +14,8 @@ export const options = {
   scenarios: {
     ui: {
       executor: 'constant-vus', // This executor maintains a constant number of virtual users
-      vus: 1, // 1 concurrent virtual user
-      duration: '30s', // Run the test for 1 minute
+      vus: 50, // 1 concurrent virtual user
+      duration: '5m', // Run the test for 1 minute
       options: {
         browser: {
           type: 'chromium',
@@ -58,7 +58,7 @@ export default async function () {
     const savedCookies = [
       {
         name: 'PHPSESSID',
-        value: '5f8evo8h2ci034h8m1kvm0nsvr',
+        value: 'p47keu3jvnrramia050j51rjod',
         domain: '212.80.215.158',
         path: '/',
       },
@@ -126,9 +126,10 @@ export function handleSummary(data) {
 
   // Insert throughput into the HTML content (modify as needed)
   const finalHtmlReport = reportData.replace('</body>', customThroughputContent + '</body>');
-
-  // Output final report with throughput included
+  const dateTime = new Date().toISOString().replace(/:/g, '-'); // Replace ':' with '-' to avoid issues in filenames
+  const fileName = `search-user-course-${dateTime}-50.html`;
   return {
+    [fileName]: finalHtmlReport,
     'search-user-course.html': finalHtmlReport,  // Generate HTML report with throughput
     stdout: JSON.stringify({
       throughput: `${throughput.toFixed(2)} requests per second`,

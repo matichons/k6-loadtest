@@ -15,7 +15,7 @@ export const options = {
     ui: {
       executor: 'constant-vus', // This executor maintains a constant number of virtual users
       vus: 1, // 1 concurrent virtual user
-      duration: '30s', // Run the test for 1 minute
+      duration: '1m', // Run the test for 1 minute
       options: {
         browser: {
           type: 'chromium',
@@ -37,7 +37,7 @@ export default async function () {
   try {
       // Add saved cookies for session management
       const savedCookies = [
-          { name: 'PHPSESSID', value: '5f8evo8h2ci034h8m1kvm0nsvr', domain: '212.80.215.158', path: '/' }
+          { name: 'PHPSESSID', value: 'gt41aod0fbqq13al2soaunkilq', domain: '212.80.215.158', path: '/' }
       ];
       await context.addCookies(savedCookies);
 
@@ -67,7 +67,7 @@ export default async function () {
    // Wait for the modal to be visible
    const modal = page.locator('#confirmModal');
    await modal.waitFor({ state: 'visible', timeout: 10000 });
-   await page.screenshot({ path: `screenshots/confirmModal-${new Date().getTime()}.png` });
+  //  await page.screenshot({ path: `screenshots/confirmModal-${new Date().getTime()}.png` });
    // Locate the element containing the text "สำเร็จ"
    const successText = page.locator('#confirm1');
    await successText.waitFor({ state: 'visible', timeout: 10000 });
@@ -83,8 +83,8 @@ await confirmButton.click();
    // Verify that the text content is as expected
 
    // Optional sleep to observe the modal
-   await sleep(4);
-   await page.screenshot({ path: `screenshots/end-${new Date().getTime()}.png` });
+  //  await sleep(4);
+  //  await page.screenshot({ path: `screenshots/end-${new Date().getTime()}.png` });
   } catch (error) {
       // Increment failed request counter in case of error
       httpReqFailed.add(1);
@@ -107,10 +107,10 @@ export function handleSummary(data) {
 
   // Insert throughput into the HTML content (modify as needed)
   const finalHtmlReport = reportData.replace('</body>', customThroughputContent + '</body>');
-
-  // Output final report with throughput included
+  const dateTime = new Date().toISOString().replace(/:/g, '-'); // Replace ':' with '-' to avoid issues in filenames
+  const fileName = `edit-course-${dateTime}-50.html`;
   return {
-    'edit-course.html': finalHtmlReport,  // Generate HTML report with throughput
+    [fileName]: finalHtmlReport,
     stdout: JSON.stringify({
       throughput: `${throughput.toFixed(2)} requests per second`,
       totalRequests: totalRequests,

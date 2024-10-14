@@ -9,13 +9,18 @@ const pageLoadTime = new Trend('page_load_time', true);
 
 const totalRequest = new Counter('total_request');
 const throughputMetric = new Trend('throughput', true);  // Track throughput (requests per second)
-const testDurationSeconds = 300; // Duration for throughput calculation (20s in this case)
+const testDurationSeconds = 360; // Duration for throughput calculation (20s in this case)
+
 export const options = {
   scenarios: {
     ui: {
-      executor: 'constant-vus', // This executor maintains a constant number of virtual users
-      vus: 1, // 1 concurrent virtual user
-      duration: '30s', // Run the test for 1 minute
+      executor: 'ramping-vus',
+      startVUs: 0, // Start with 0 virtual users
+      stages: [
+        { duration: '1m', target: 50 }, // Ramp up to 100 VUs in 2 minutes
+        { duration: '4m', target: 100 }, // Stay at 100 VUs for 3 minutes
+        { duration: '1m', target: 0 }, // Ramp down to 0 VUs in 1 minute
+      ],
       options: {
         browser: {
           type: 'chromium',
@@ -28,8 +33,6 @@ export const options = {
     'http_req_failed': ['rate<0.01'],   // Less than 1% of requests should fail
   },
 };
-
-
 export default async function () {
   const context = await browser.newContext();
   const page = await context.newPage();
@@ -37,7 +40,7 @@ export default async function () {
   try {
       // Add saved cookies for session management
       const savedCookies = [
-          { name: 'PHPSESSID', value: '5f8evo8h2ci034h8m1kvm0nsvr', domain: '212.80.215.158', path: '/' }
+          { name: 'PHPSESSID', value: 'nfetlqq9lv0klhns9166a37dc2', domain: '212.80.215.158', path: '/' }
       ];
       await context.addCookies(savedCookies);
 
@@ -107,10 +110,10 @@ export function handleSummary(data) {
 
   // Insert throughput into the HTML content (modify as needed)
   const finalHtmlReport = reportData.replace('</body>', customThroughputContent + '</body>');
-
-  // Output final report with throughput included
+  const dateTime = new Date().toISOString().replace(/:/g, '-'); // Replace ':' with '-' to avoid issues in filenames
+  const fileName = `course-${dateTime}-100.html`;
   return {
-    'course.html': finalHtmlReport,  // Generate HTML report with throughput
+    [fileName]: finalHtmlReport,
     stdout: JSON.stringify({
       throughput: `${throughput.toFixed(2)} requests per second`,
       totalRequests: totalRequests,

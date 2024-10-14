@@ -9,14 +9,18 @@ const pageLoadTime = new Trend('page_load_time', true);
 
 const totalRequest = new Counter('total_request');  // Track total number of requests
 const throughputMetric = new Trend('throughput', true);  // Track throughput (requests per second)
-const testDurationSeconds = 300; // Duration for throughput calculation
+const testDurationSeconds = 360; // Duration for throughput calculation (20s in this case)
 
 export const options = {
   scenarios: {
     ui: {
-      executor: 'constant-vus',
-      vus: 50, // 40 concurrent virtual users
-      duration: '5m',
+      executor: 'ramping-vus',
+      startVUs: 0, // Start with 0 virtual users
+      stages: [
+        { duration: '1m', target: 50 }, // Ramp up to 100 VUs in 2 minutes
+        { duration: '4m', target: 100 }, // Stay at 100 VUs for 3 minutes
+        { duration: '1m', target: 0 }, // Ramp down to 0 VUs in 1 minute
+      ],
       options: {
         browser: {
           type: 'chromium',
@@ -26,6 +30,7 @@ export const options = {
   },
   thresholds: {
     'http_req_duration': ['p(99)<500'], // 99% of requests must complete below 0.5s
+    'http_req_failed': ['rate<0.01'],   // Less than 1% of requests should fail
   },
 };
 
@@ -114,7 +119,7 @@ export function handleSummary(data) {
   const finalHtmlReport = reportData.replace('</body>', customThroughputContent + '</body>');
 
   return {
-    [`login-${Date.now()}-50.html`]: finalHtmlReport,
+    [`login-${Date.now()}-100.html`]: finalHtmlReport,
     stdout: JSON.stringify({
       throughput: `${throughput.toFixed(2)} requests per second`,
       totalRequests: totalRequests,

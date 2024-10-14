@@ -11,14 +11,18 @@ const totalRequest = new Counter('total_request');
 const throughputMetric = new Trend('throughput', true);  // Track throughput (requests per second)
 
 // Set duration in seconds manually (for throughput calculation)
-const testDurationSeconds = 300; // Duration for throughput calculation (20s in this case)
+const testDurationSeconds = 360; // Duration for throughput calculation (20s in this case)
 
 export const options = {
   scenarios: {
     ui: {
-      executor: 'constant-vus', // This executor maintains a constant number of virtual users
-      vus: 5, // 1 concurrent virtual user
-      duration: '5m', // Run the test for 1 minute
+      executor: 'ramping-vus',
+      startVUs: 0, // Start with 0 virtual users
+      stages: [
+        { duration: '1m', target: 50 }, // Ramp up to 100 VUs in 2 minutes
+        { duration: '4m', target: 100 }, // Stay at 100 VUs for 3 minutes
+        { duration: '1m', target: 0 }, // Ramp down to 0 VUs in 1 minute
+      ],
       options: {
         browser: {
           type: 'chromium',
@@ -28,6 +32,7 @@ export const options = {
   },
   thresholds: {
     'http_req_duration': ['p(99)<500'], // 99% of requests must complete below 0.5s
+    'http_req_failed': ['rate<0.01'],   // Less than 1% of requests should fail
   },
 };
 
@@ -37,7 +42,7 @@ export default async function () {
 
   try {
     const savedCookies = [
-      { name: 'PHPSESSID', value: 'ng4nubl0u25jeckkhp8a2nojpi', domain: '212.80.215.158', path: '/' }
+      { name: 'PHPSESSID', value: 'u4o4rttl220iqao7b5ddt8moor', domain: '212.80.215.158', path: '/' }
     ];
   
     await context.addCookies(savedCookies);
@@ -134,7 +139,7 @@ export function handleSummary(data) {
 
   // Output final report with throughput included
   const dateTime = new Date().toISOString().replace(/:/g, '-'); // Replace ':' with '-' to avoid issues in filenames
-  const fileName = `view-video-${dateTime}-50.html`;
+  const fileName = `view-video-${dateTime}-100.html`;
   return {
     [fileName]: finalHtmlReport,
     stdout: JSON.stringify({

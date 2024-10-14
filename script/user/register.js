@@ -11,14 +11,18 @@ const totalRequest = new Counter('total_request');
 const throughputMetric = new Trend('throughput', true);  // Track throughput (requests per second)
 
 // Set duration in seconds manually (for throughput calculation)
-const testDurationSeconds = 300; // Duration for throughput calculation (20s in this case)
+const testDurationSeconds = 360; // Duration for throughput calculation (20s in this case)
 
 export const options = {
   scenarios: {
     ui: {
-      executor: 'constant-vus', // This executor maintains a constant number of virtual users
-      vus: 50, // 1 concurrent virtual user
-      duration: '5m', // Run the test for 1 minute
+      executor: 'ramping-vus',
+      startVUs: 0, // Start with 0 virtual users
+      stages: [
+        { duration: '1m', target: 50 }, // Ramp up to 100 VUs in 2 minutes
+        { duration: '4m', target: 100 }, // Stay at 100 VUs for 3 minutes
+        { duration: '1m', target: 0 }, // Ramp down to 0 VUs in 1 minute
+      ],
       options: {
         browser: {
           type: 'chromium',
@@ -263,7 +267,7 @@ export function handleSummary(data) {
 
   const finalHtmlReport = reportData.replace('</body>', customThroughputContent + '</body>');
   const dateTime = new Date().toISOString().replace(/:/g, '-');
-  const fileName = `register-${dateTime}-report.html`;
+  const fileName = `register-${dateTime}-100.html`;
 
   return {
     [fileName]: finalHtmlReport,
